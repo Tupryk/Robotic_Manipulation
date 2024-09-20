@@ -117,7 +117,7 @@ class ManipulationModelling():
         #f.joint.sampleSdv=1.
         #f.joint.setRandom(self.komo.timeSlices.d1, 0)
 
-    def grasp_top_box(self, time: list[float], gripper: str, obj: str, grasp_direction: str='xz'):
+    def grasp_top_box(self, time: float, gripper: str, obj: str, grasp_direction: str='xz'):
         """
         grasp a box with a centered top grasp (axes fully aligned)
         """
@@ -145,7 +145,7 @@ class ManipulationModelling():
         self.komo.addObjective([time-.2,time], align[2], [obj, gripper], ry.OT.eq, [1e0])
 
 
-    def grasp_box(self, time: list[float], gripper: str, obj: str, palm: str, grasp_direction: str='x', margin: float=.02):
+    def grasp_box(self, time: float, gripper: str, obj: str, palm: str, grasp_direction: str='x', margin: float=.02):
         """
         general grasp of a box, squeezing along provided grasp_axis (-> 3
         possible grasps of a box), where and angle of grasp is decided by
@@ -180,7 +180,7 @@ class ManipulationModelling():
         # no collision with palm
         self.komo.addObjective([time-.3,time], ry.FS.distance, [palm, obj], ry.OT.ineq, [1e1], [-.001])
 
-    def grasp_cylinder(self, time: list[float], gripper: str, obj: str, palm: str, margin: float=.02):
+    def grasp_cylinder(self, time: float, gripper: str, obj: str, palm: str, margin: float=.02):
         """
         general grasp of a cylinder, with squeezing the axis normally,
         inequality along z-axis for positioning, and no-collision with palm
@@ -198,7 +198,7 @@ class ManipulationModelling():
         # no collision with palm
         self.komo.addObjective([time-.3,time], ry.FS.distance, [palm, obj], ry.OT.ineq, [1e1], [-.001])
 
-    def place_box(self, time: list[float], obj: str, table: str, palm: str, place_direction: str='z', margin: float=.02):
+    def place_box(self, time: float, obj: str, table: str, palm: str, place_direction: str='z', margin: float=.02):
         """
         placement of one box on another
         """
@@ -415,15 +415,15 @@ class ManipulationModelling():
         impose a specific 3D target position on some object
         """
 
-    def target_xy_position(self, time: list[float], obj: str, pos: list[float]):
+    def target_xy_position(self, time: float, obj: str, pos: list[float]):
         """
         impose a specific 3D target position on some object
         """
         if len(pos)==2:
             pos.append(0.)
-        self.komo.addObjective(time, ry.FS.position, [obj], ry.OT.eq, 1e1*np.array([[1,0,0],[0,1,0]]), pos)
+        self.komo.addObjective([time], ry.FS.position, [obj], ry.OT.eq, 1e1*np.array([[1,0,0],[0,1,0]]), pos)
     
-    def target_relative_xy_position(self, time, obj, relativeTo, pos):
+    def target_relative_xy_position(self, time: float, obj: str, relativeTo: str, pos: list[float]):
         """
         impose a specific 3D target position on some object
         """
@@ -431,12 +431,12 @@ class ManipulationModelling():
             pos.append(0.)
         self.komo.addObjective([time], ry.FS.positionRel, [obj, relativeTo], ry.OT.eq, scale=1e1*np.array([[1,0,0],[0,1,0]]), target=pos)
     
-    def target_x_orientation(self, time: list[float], obj: str, x_vector: list[float]):
+    def target_x_orientation(self, time: float, obj: str, x_vector: list[float]):
         """
         """
         self.komo.addObjective([time], ry.FS.vectorX, [obj], ry.OT.eq, scale=[1e1], target=x_vector)
 
-    def bias(self, time: list[float], qBias: list[float], scale: float=1e0):
+    def bias(self, time: float, qBias: list[float], scale: float=1e0):
         """
         impose a square potential bias directly in joint space
         """
@@ -448,7 +448,7 @@ class ManipulationModelling():
         self.komo.addObjective(time_interval, ry.FS.quaternionDiff, [gripper, helper], ry.OT.eq, [1e2])
         self.komo.addObjective([time_interval[1]], ry.FS.positionRel, [gripper, helper], ry.OT.ineq, -1e2 * np.array([[0, 0, 1]]), target = [0., 0., dist])
 
-    def approach(self, time_interval, gripper, dist=.05):
+    def approach(self, time_interval: list[float], gripper: str, dist=.05):
         helper = f'_{gripper}_end'
         self.komo.addObjective(time_interval, ry.FS.positionRel, [gripper, helper], ry.OT.eq, 1e2 * np.array([[1, 0, 0]]))
         self.komo.addObjective(time_interval, ry.FS.quaternionDiff, [gripper, helper], ry.OT.eq, [1e2])

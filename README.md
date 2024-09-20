@@ -1,2 +1,2 @@
 # Robotic_Manipulation
-Manipulation abstractions for the LIS Lab robotic library
+Manipulation abstraction tutorials for the LIS Lab robotic library

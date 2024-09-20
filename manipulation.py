@@ -111,7 +111,7 @@ class ManipulationModelling():
             rrt.setExplicitCollisionPairs(explicitCollisionPairs)
 
     def add_helper_frame(self, type, parent, name, initFrame):
-        f = self.komo.addStableFrame(type, parent, name, initFrame)
+        f = self.komo.addStableFrame(name, parent, type, True, initFrame)
         f.setShape(ry.ST.marker, [.2])
         f.setColor([1., 0., 1.])
         #f.joint.sampleSdv=1.
@@ -414,6 +414,15 @@ class ManipulationModelling():
         """
         impose a specific 3D target position on some object
         """
+
+    def target_xy_position(self, time, obj, pos):
+        """
+        impose a specific 3D target position on some object
+        """
+        if len(pos)==2:
+            pos.append(0.)
+        self.komo.addObjective(time, ry.FS.position, [obj], ry.OT.eq, 1e1*np.array([[1,0,0],[0,1,0]]), pos)
+    
     def target_relative_xy_position(self, time, obj, relativeTo, pos):
         """
         impose a specific 3D target position on some object
@@ -421,6 +430,7 @@ class ManipulationModelling():
         if len(pos)==2:
             pos.append(0.)
         self.komo.addObjective([time], ry.FS.positionRel, [obj, relativeTo], ry.OT.eq, scale=1e1*np.array([[1,0,0],[0,1,0]]), target=pos)
+    
     def target_x_orientation(self, time, obj, x_vector):
         """
         """

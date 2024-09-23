@@ -68,6 +68,28 @@ class ManipulationModelling():
 
         self.komo.addModeSwitch([1.,-1.], ry.SY.stable, [gripper, obj], True)
 
+    def setup_pick_and_place_sequence(self, gripper: str, objs: list[str], homing_scale: float=1e-2, velocity_scale: float=1e-1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
+        """
+        setup an n*2 phase pick-and-place problem
+        """
+        phases = len(objs) * 2
+        self.komo = ry.KOMO(self.C, phases, 1, 1, accumulated_collisions)
+        self.komo.addControlObjective([], order=0, scale=homing_scale)
+        self.komo.addControlObjective([], order=1, scale=velocity_scale)
+        if accumulated_collisions:
+            self.komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, scale=[1e1])
+
+        if joint_limits:
+            self.komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, scale=[1e0])
+
+        if quaternion_norms:
+            self.komo.addQuaternionNorms()
+
+        for i, obj in enumerate(objs):
+            times = [i*2+1, i*2+2]
+            self.komo.addModeSwitch(times, ry.SY.stable, [gripper, obj])
+            self.komo.addModeSwitch([times[1], -1.], ry.SY.stable, ["table", obj])
+
     def setup_point_to_point_motion(self, q0: list[float], q1: list[float], homing_scale: float=1e-2, acceleration_scale: float=1e-1, accumulated_collisions: bool=True, quaternion_norms: bool=False):
         """
         setup a 1 phase fine-grained motion problem with 2nd order (acceleration) control costs
@@ -399,6 +421,12 @@ class ManipulationModelling():
             del objs[0]
             for obj in objs:
                 self.komo.addObjective(time_interval, ry.FS.negDistance, [comp, obj], ry.OT.ineq, [1e1], [-margin])
+
+    def set_relative_distance(self, time: float, obj1: str, obj2: str, distance: float):
+        """
+        inequality on distance between two objects
+        """
+        self.komo.addObjective([time], ry.FS.negDistance, [obj1, obj2], ry.OT.eq, [1e1], [-distance])
 
     def switch_pick():
         """

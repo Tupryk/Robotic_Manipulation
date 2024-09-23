@@ -25,3 +25,4 @@
 - Checkout follow_path_on_plane and path_must_be_straight in manipulation.py
 - propper pulling tutorial descriptions
 - Compare new notebooks to originals
+- Combine with Deniz's notebook

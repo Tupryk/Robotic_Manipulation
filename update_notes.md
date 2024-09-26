@@ -13,8 +13,6 @@
 
 ## To discuss
 - Separated original tutorial sections into different notebooks
-- In Manipulation pushing the block gets shifter downwards between the two submotions
-- How to define the straightness of the second sub_motion in random pushing?
 
 ## To do
 - Fill in remaining funcs

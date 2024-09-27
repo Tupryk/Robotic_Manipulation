@@ -69,7 +69,8 @@ def generate_shelf(C: ry.Config, pos: np.ndarray):
                 C.addFrame(f"small_box_inside_{s}_{i}_{j}", f"shelf_back_{s}") \
                     .setRelativePosition(opening_pos) \
                     .setShape(ry.ST.ssBox, size=[small_opening_dims[2], small_opening_dims[0], small_opening_dims[1], 0.005]) \
-                    .setColor([0., 0., 0., .2])
+                    .setColor([0., 0., 0., .2]) \
+                    .setContact(0)
             
             p = w*.25
             p *= 1. if s == 0 else -1.
@@ -86,7 +87,8 @@ def generate_shelf(C: ry.Config, pos: np.ndarray):
             C.addFrame(f"big_box_inside_{s}_{j}", "shelf_base") \
                 .setRelativePosition([0., p, base_height*.5 + j*small_opening_dims[1] + small_opening_dims[1]*.5]) \
                 .setShape(ry.ST.ssBox, size=[d - small_opening_dims[2]*2., w*.5, small_opening_dims[1], 0.005]) \
-                .setColor([0., 0., 0., .2])
+                .setColor([0., 0., 0., .2]) \
+                .setContact(0)
             
             p = w*.5
             p *= 1. if s == 0 else -1.

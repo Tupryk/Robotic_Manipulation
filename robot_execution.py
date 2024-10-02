@@ -1,9 +1,9 @@
 import time
 import numpy as np
-import open3d as o3d
+# import open3d as o3d
 import robotic as ry
 from typing import Tuple
-from utils import estimate_cube_pose, extract_position_and_quaternion
+# from utils import estimate_cube_pose, extract_position_and_quaternion
 
 
 class Robot():

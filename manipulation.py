@@ -312,7 +312,7 @@ class ManipulationModelling():
 
     def follow_path_on_plane(self, path: list[list[float]], moving_frame: str, plane: str="z"):
         """
-        This function supposes the the robot is already at the starting position!
+        This function assumes the the robot is already at the starting position!
         Move through the 2D points defined in the path while staying on the plane specified.
 
         TODO: Take direction of plane normal into account.

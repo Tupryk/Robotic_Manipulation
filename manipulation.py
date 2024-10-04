@@ -35,7 +35,7 @@ class ManipulationModelling():
 
         self.komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, scale=[1e0])
 
-    def setup_multi_phase_komo(self, phases: int, slices_per_phase: int=1, accumulated_collisions: bool=True):
+    def setup_multi_phase_komo(self, phases: int, slices_per_phase: int=1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
         """
         setup a motion problem with multiple phases
         """
@@ -48,6 +48,12 @@ class ManipulationModelling():
 
         if accumulated_collisions:
             self.komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, scale=[1e0])
+
+        if joint_limits:
+            self.komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, scale=[1e0])
+
+        if quaternion_norms:
+            self.komo.addQuaternionNorms()
 
     def setup_pick_and_place_waypoints(self, gripper: str, obj: str, homing_scale: float=1e-2, velocity_scale: float=1e-1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
         """
@@ -126,11 +132,11 @@ class ManipulationModelling():
         # end point
         self.komo.addObjective([1.], ry.FS.qItself, [], ry.OT.eq, scale=[1e0], target=q1)
 
-    def setup_point_to_point_rrt(self, q0: list[float], q1: list[float], explicitCollisionPairs: list[str]):
-        rrt = ry.PathFinder()
-        rrt.setProblem(self.C, q0, q1)
+    def setup_point_to_point_rrt(self, q0: list[float], q1: list[float], explicitCollisionPairs: list[str]=[]):
+        self.rrt = ry.PathFinder()
+        self.rrt.setProblem(self.C, q0, q1)
         if len(explicitCollisionPairs):
-            rrt.setExplicitCollisionPairs(explicitCollisionPairs)
+            self.rrt.setExplicitCollisionPairs(explicitCollisionPairs)
 
     def add_helper_frame(self, type: ry.JT, parent: str, name: str, initFrame: int):
         f = self.komo.addStableFrame(name, parent, type, True, initFrame)
@@ -310,7 +316,7 @@ class ManipulationModelling():
         self.komo.addObjective([times[0]], ry.FS.negDistance, [gripper, obj], ry.OT.eq, [1e1], [-.005])
         self.komo.addObjective([times[1]], ry.FS.positionDiff, [obj, '_pull_end'], ry.OT.eq, [1e1])
 
-    def follow_path_on_plane(self, path: list[list[float]], moving_frame: str, plane: str="z"):
+    def follow_path_on_plane_xy(self, path: list[list[float]], moving_frame: str):
         """
         This function assumes the the robot is already at the starting position!
         Move through the 2D points defined in the path while staying on the plane specified.
@@ -318,25 +324,12 @@ class ManipulationModelling():
         TODO: Take direction of plane normal into account.
         """
         start_pos = self.C.getFrame(moving_frame).getPosition()
-        if plane == "x":
-            plane_pos = np.array([start_pos[0], 0, 0])
-            threed_path = []
-            for p in path:
-                threed_path.append([0, p[0], p[1]]) # TODO: check if this makes sense
-        elif plane == "y":
-            plane_pos = np.array([0, start_pos[1], 0])
-            threed_path = []
-            for p in path:
-                threed_path.append([p[0], 0, p[1]])
-        elif plane == "z":
-            plane_pos = np.array([0, 0, start_pos[2]])
-            threed_path = []
-            for p in path:
-                threed_path.append([p[0], p[1], 0])
-        else:
-            raise Exception('Plane is not defined: ', plane)
+        plane_pos = np.array([0, 0, start_pos[2]])
+        threed_path = []
+        for p in path:
+            threed_path.append([p[0], p[1], 0])
         
-        imp_axis = plane_pos/np.linalg.norm(plane_pos)
+        imp_axis = np.array([0., 0., 1.])
         
         phases = len(path)-1
 
@@ -344,46 +337,8 @@ class ManipulationModelling():
         self.komo.addObjective([1, phases], ry.FS.vectorZ, [moving_frame], ry.OT.eq, [1e1], imp_axis)
         self.komo.addObjective([1, phases], ry.FS.position, [moving_frame], ry.OT.eq, imp_axis*1e1, plane_pos)
 
-        res = np.array([1, 1, 1]) - imp_axis
         for i in range(1, len(path)):
-            self.komo.addObjective([i], ry.FS.position, [moving_frame], ry.OT.eq, res, threed_path[i])
-
-        start_pos = self.C.getFrame(moving_frame).getPosition()
-        if plane == "x":
-            plane_pos = np.array([start_pos[0], 0, 0])
-            threed_path = []
-            for p in path:
-                threed_path.append([0, p[0], p[1]]) # TODO: check if this makes sense
-        elif plane == "y":
-            plane_pos = np.array([0, start_pos[1], 0])
-            threed_path = []
-            for p in path:
-                threed_path.append([p[0], 0, p[1]])
-        elif plane == "z":
-            plane_pos = np.array([0, 0, start_pos[2]])
-            threed_path = []
-            for p in path:
-                threed_path.append([p[0], p[1], 0])
-        else:
-            raise Exception('Plane is not defined: ', plane)
-        
-        imp_axis = plane_pos/np.linalg.norm(plane_pos)
-        
-        phases = len(path)-1
-        self.komo = ry.KOMO()
-        self.komo.setConfig(self.C, False)
-        self.komo.setTiming(phases, 5, 1., 2)
-
-        self.komo.addControlObjective([], 1, 1e-1)
-        self.komo.addControlObjective([], 2, 1e-1)
-
-        self.komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
-        self.komo.addObjective([1, phases], ry.FS.vectorZ, [moving_frame], ry.OT.eq, [1e1], imp_axis)
-        self.komo.addObjective([1, phases], ry.FS.position, [moving_frame], ry.OT.eq, imp_axis*1e1, plane_pos)
-
-        res = np.array([1, 1, 1]) - imp_axis
-        for i in range(1, len(path)):
-            self.komo.addObjective([i], ry.FS.position, [moving_frame], ry.OT.eq, res, threed_path[i])
+            self.target_xy_position(i, moving_frame, threed_path[i])
 
     def path_must_be_straight(self, times: list[float], start_frame: str, end_frame: str, moving_frame: str, gotoPoints: bool=False):
         """
@@ -527,9 +482,9 @@ class ManipulationModelling():
                             pass
 
         elif self.rrt:
-            ret = self.rrt.solve()
-            if ret.feasible:
-                self.path = ret.x
+            self.ret = self.rrt.solve()
+            if self.ret.feasible:
+                self.path = self.ret.x
             else:
                 self.path = None
 

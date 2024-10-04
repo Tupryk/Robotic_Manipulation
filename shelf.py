@@ -97,6 +97,36 @@ def generate_shelf(C: ry.Config, pos: np.ndarray):
                 .setShape(ry.ST.ssBox, size=[d - small_opening_dims[2]*2., inner_wall_width, .03, 0.005]) \
                 .setColor([1., 1., 0.])    
 
+def generate_target_box(C: ry.Config, pos: np.ndarray, box_dims: list[float]=[.15, .2, .15]):
+
+    wall_width = .005
+
+    C.addFrame("target_box_inside") \
+        .setPosition(pos) \
+        .setShape(ry.ST.ssBox, size=[*box_dims, 0.005]) \
+        .setColor([0., 1., 0., .3]) \
+        .setContact(0)
+    
+    C.addFrame("target_box_bottom", "target_box_inside") \
+        .setRelativePosition([0., 0., -box_dims[2]*.5]) \
+        .setShape(ry.ST.ssBox, size=[*box_dims[:2], wall_width, 0.005]) \
+        .setColor([0., 0., .7])
+    C.addFrame(f"target_box_left", "target_box_inside") \
+        .setRelativePosition([0., box_dims[1]*.5, 0.]) \
+        .setShape(ry.ST.ssBox, size=[box_dims[0], wall_width, box_dims[2], 0.005]) \
+        .setColor([0., 0., .7])
+    C.addFrame(f"target_box_right", "target_box_inside") \
+        .setRelativePosition([0., -box_dims[1]*.5, 0.]) \
+        .setShape(ry.ST.ssBox, size=[box_dims[0], wall_width, box_dims[2], 0.005]) \
+        .setColor([0., 0., .7])
+    C.addFrame(f"target_box_front", "target_box_inside") \
+        .setRelativePosition([box_dims[0]*.5, 0., 0.]) \
+        .setShape(ry.ST.ssBox, size=[wall_width, box_dims[1], box_dims[2], 0.005]) \
+        .setColor([0., 0., .7])
+    C.addFrame(f"target_box_back", "target_box_inside") \
+        .setRelativePosition([-box_dims[0]*.5, 0., 0.]) \
+        .setShape(ry.ST.ssBox, size=[wall_width, box_dims[1], box_dims[2], 0.005]) \
+        .setColor([0., 0., .7])
 
 if __name__ == "__main__":
     C = ry.Config()

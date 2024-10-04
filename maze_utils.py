@@ -15,15 +15,14 @@ def generate_maze(C: ry.Config, position: List[float]=[.0, .0, .0]):
 
     maze_size: float=.6
     wall_width: float=.04
-    wall_height: float=.02
+    wall_height: float=.025
 
     C.addFrame("maze").setPosition(position)
 
-    generate_maze_block(C, [.01, maze_size, .055], [(maze_size+.01)*.5, 0, 0], "maze_outer_wall_0")
-    generate_maze_block(C, [maze_size, .01, .055], [0, (maze_size+.01)*.5, 0], "maze_outer_wall_1")
-    generate_maze_block(C, [.01, maze_size, .055], [(maze_size+.01)*-.5, 0, 0], "maze_outer_wall_2")
-    generate_maze_block(C, [maze_size, .01, .055], [0, (maze_size+.01)*-.5, 0], "maze_outer_wall_3")
-    generate_maze_block(C, [maze_size, maze_size, wall_height], [.0, .0, -(.055+wall_height)*.5], "maze_floor")
+    generate_maze_block(C, [.01, maze_size, wall_height], [(maze_size+.01)*.5, 0, 0], "maze_outer_wall_0")
+    generate_maze_block(C, [maze_size, .01, wall_height], [0, (maze_size+.01)*.5, 0], "maze_outer_wall_1")
+    generate_maze_block(C, [.01, maze_size, wall_height], [(maze_size+.01)*-.5, 0, 0], "maze_outer_wall_2")
+    generate_maze_block(C, [maze_size, .01, wall_height], [0, (maze_size+.01)*-.5, 0], "maze_outer_wall_3")
 
     generate_maze_block(C, [wall_width, .2, .055], [0, 0, 0], "maze_inner_wall")
         
@@ -36,6 +35,11 @@ def generate_maze(C: ry.Config, position: List[float]=[.0, .0, .0]):
         .setShape(ry.ST.marker, size=[.02]) \
         .setRelativePosition([-.3*maze_size, 0., 0]) \
         .setColor([1, 0, 1])
+    
+    start_pos = C.getFrame("start").getPosition()
+    goal_pos = C.getFrame("goal").getPosition()
+    
+    return start_pos, goal_pos
     
 def solve_maze_rrt(C: ry.Config, visual: bool=False) -> ry._robotic.SolverReturn:
     """

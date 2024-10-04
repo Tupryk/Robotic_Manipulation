@@ -10,6 +10,7 @@
     - set_relative_distance
 - Added botop to tutorials (should maybe be in a sepparate notebook alltogether)
 - Once again added typing
+- Added rrt tutorial and fixed some rrt stuff in manipulation.py
 
 ## To discuss
 - Separated original tutorial sections into different notebooks

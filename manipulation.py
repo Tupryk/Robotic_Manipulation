@@ -35,7 +35,7 @@ class ManipulationModelling():
 
         self.komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, scale=[1e0])
 
-    def setup_multi_phase_komo(self, phases: int, slices_per_phase: int=1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
+    def setup_multi_phase_problem(self, phases: int, slices_per_phase: int=1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
         """
         setup a motion problem with multiple phases
         """
@@ -74,7 +74,7 @@ class ManipulationModelling():
 
         self.komo.addModeSwitch([1.,-1.], ry.SY.stable, [gripper, obj], True)
 
-    def setup_pick_and_place_sequence(self, gripper: str, objs: list[str], homing_scale: float=1e-2, velocity_scale: float=1e-1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
+    def setup_pick_and_place_sequence(self, gripper: str, table: str, objs: list[str], homing_scale: float=1e-2, velocity_scale: float=1e-1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
         """
         setup an n*2 phase pick-and-place problem
         """
@@ -94,7 +94,7 @@ class ManipulationModelling():
         for i, obj in enumerate(objs):
             times = [i*2+1, i*2+2]
             self.komo.addModeSwitch(times, ry.SY.stable, [gripper, obj])
-            self.komo.addModeSwitch([times[1], -1.], ry.SY.stable, ["table", obj])
+            self.komo.addModeSwitch([times[1], -1.], ry.SY.stable, [table, obj])
 
     def setup_point_to_point_motion(self, q0: list[float], q1: list[float], homing_scale: float=1e-2, acceleration_scale: float=1e-1, accumulated_collisions: bool=True, quaternion_norms: bool=False):
         """
@@ -171,7 +171,6 @@ class ManipulationModelling():
         self.komo.addObjective([time-.2,time], align[0], [obj, gripper], ry.OT.eq, [1e0])
         self.komo.addObjective([time-.2,time], align[1], [obj, gripper], ry.OT.eq, [1e0])
         self.komo.addObjective([time-.2,time], align[2], [obj, gripper], ry.OT.eq, [1e0])
-
 
     def grasp_box(self, time: float, gripper: str, obj: str, palm: str, grasp_direction: str='x', margin: float=.02):
         """
@@ -383,24 +382,29 @@ class ManipulationModelling():
         """
         self.komo.addObjective([time], ry.FS.negDistance, [obj1, obj2], ry.OT.eq, [1e1], [-distance])
 
-    def switch_pick():
+    def switch_pick(self, time_interval: list[float], gripper: str, obj: str):
         """
         a kinematic mode switch, where obj becomes attached to gripper, with freely parameterized but stable (=constant) relative pose
         """
-    def switch_place():
+        self.komo.addModeSwitch(time_interval, ry.SY.stable, [gripper, obj])
+
+    def switch_place(self, time_interval: list[float], table: str, obj: str):
         """
-        a kinematic mode switch, where obj becomes attached to table, with a 3D parameterized (XYPhi) stable relative pose
+        TODO: a kinematic mode switch, where obj becomes attached to table, with a 3D parameterized (XYPhi) stable relative pose
         this requires obj and table to be boxes and assumes default placement alone z-axis
         more general placements have to be modelled with switch_pick (table picking the object) and additinal user-defined geometric constraints
         """
-    def target_position():
+        self.komo.addModeSwitch(time_interval, ry.SY.stable, [table, obj])
+
+    def target_position(self, time: float, obj: str, pos: list[float]):
         """
         impose a specific 3D target position on some object
         """
+        self.komo.addObjective([time], ry.FS.position, [obj], ry.OT.eq, [1e1], pos)
 
     def target_xy_position(self, time: float, obj: str, pos: list[float]):
         """
-        impose a specific 3D target position on some object
+        impose a specific 2D target position on some object
         """
         if len(pos)==2:
             pos.append(0.)
@@ -418,6 +422,16 @@ class ManipulationModelling():
         """
         """
         self.komo.addObjective([time], ry.FS.vectorX, [obj], ry.OT.eq, scale=[1e1], target=x_vector)
+
+    def target_y_orientation(self, time: float, obj: str, y_vector: list[float]):
+        """
+        """
+        self.komo.addObjective([time], ry.FS.vectorY, [obj], ry.OT.eq, scale=[1e1], target=y_vector)
+
+    def target_z_orientation(self, time: float, obj: str, z_vector: list[float]):
+        """
+        """
+        self.komo.addObjective([time], ry.FS.vectorZ, [obj], ry.OT.eq, scale=[1e1], target=z_vector)
 
     def bias(self, time: float, qBias: list[float], scale: float=1e0):
         """

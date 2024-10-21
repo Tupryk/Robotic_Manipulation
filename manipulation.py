@@ -21,30 +21,53 @@ class ManipulationModelling():
 
         self.komo: ry.KOMO=None
 
-    def setup_inverse_kinematics(self, homing_scale: float=1e-1, accumulated_collisions: bool=True, quaternion_norms: bool=False):
+    def setup_inverse_kinematics(self, homing_scale: float = 1e-1, accumulated_collisions: bool = True, quaternion_norms: bool = False):
         """
-        setup a 1 phase single step problem
+        Set up a single-phase inverse kinematics problem with optional constraints.
+
+        Args:
+            homing_scale (float, optional): The scaling factor for the homing objective, which controls the strength of
+                                            the objective that brings the system towards a home (default) position. 
+                                            Default value is 0.1.
+            accumulated_collisions (bool, optional): If True, imposes a constraint on accumulated collisions to minimize
+                                                     collisions between objects. Default is True.
+            quaternion_norms (bool, optional): If True, imposes a quaternion normalization constraint to ensure proper 
+                                            orientation representations. Default is False.
+
         """
         self.komo = ry.KOMO(self.C, 1, 1, 0, accumulated_collisions)
+        
         self.komo.addControlObjective([], order=0, scale=homing_scale)
-        if quaternion_norms:
-            self.komo.addQuaternionNorms()
-
+        
         if accumulated_collisions:
             self.komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, scale=[1e0])
 
         self.komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, scale=[1e0])
 
-    def setup_multi_phase_problem(self, phases: int, slices_per_phase: int=1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
+        if quaternion_norms:
+            self.komo.addQuaternionNorms()
+
+    def setup_multi_phase_problem(self, phases: int, slices_per_phase: int = 1, accumulated_collisions: bool = True, joint_limits: bool = True, quaternion_norms: bool = False):
         """
-        setup a motion problem with multiple phases
+        Set up a motion problem with multiple phases for inverse kinematics.
+
+        Args:
+            phases (int): The number of phases in the motion problem. Each phase represents a segment of the trajectory.
+            slices_per_phase (int, optional): The number of slices (time steps) per phase. Default is 1.
+            accumulated_collisions (bool, optional): If True, adds a constraint on accumulated collisions to minimize  
+                                                     collisions between objects. Default is True.
+            joint_limits (bool, optional): If True, imposes constraints on joint limits to ensure the robot's joints 
+                                            stay within their allowable range. Default is True.
+            quaternion_norms (bool, optional): If True, adds a constraint to normalize quaternions to ensure valid 
+                                            orientation representations. Default is False.
+
         """
         self.komo = ry.KOMO()
         self.komo.setConfig(self.C, accumulated_collisions)
-        self.komo.setTiming(phases, slices_per_phase, 1., 2)
+        self.komo.setTiming(phases, slices_per_phase, 1.0, 2)
 
-        self.komo.addControlObjective([], 1, 1e-1)
-        self.komo.addControlObjective([], 2, 1e-1)
+        self.komo.addControlObjective([], 1, 1e-1)  # Control order 1
+        self.komo.addControlObjective([], 2, 1e-1)  # Control order 2
 
         if accumulated_collisions:
             self.komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, scale=[1e0])
@@ -55,14 +78,28 @@ class ManipulationModelling():
         if quaternion_norms:
             self.komo.addQuaternionNorms()
 
-    def setup_pick_and_place_waypoints(self, gripper: str, obj: str, homing_scale: float=1e-2, velocity_scale: float=1e-1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
+    def setup_pick_and_place_waypoints(self, gripper: str, obj: str, homing_scale: float = 1e-2, velocity_scale: float = 1e-1, accumulated_collisions: bool = True, joint_limits: bool = True, quaternion_norms: bool = False):
         """
-        setup a 2 phase pick-and-place problem, with a pick switch at time 1, and a place switch at time 2
-        the place mode switch at the final time two might seem obselete, but this switch also implies the geometric constraints of placeOn
+        Set up a two-phase pick-and-place motion problem with a pick switch at timestep 1, and a place switch at timestep 2.
+
+        Args:
+            gripper (str): The name or identifier of the gripper that will pick and place the object.
+            obj (str): The name or identifier of the object to be picked and placed.
+            homing_scale (float, optional): The scaling factor for the homing objective, which encourages the system to 
+                                            move towards a home position. Default is 0.01.
+            velocity_scale (float, optional): The scaling factor for the velocity control objective, influencing the 
+                                            rate of movement. Default is 0.1.
+            accumulated_collisions (bool, optional): If True, adds a constraint on accumulated collisions to minimize
+                                                     collisions between objects. Default is True.
+            joint_limits (bool, optional): If True, imposes constraints on joint limits to ensure the robot's joints 
+                                            stay within their allowable range. Default is True.
+            quaternion_norms (bool, optional): If True, adds a constraint to normalize quaternions to ensure valid 
+                                            orientation representations. Default is False.
         """
-        self.komo = ry.KOMO(self.C, 2., 1, 1, accumulated_collisions)
+        self.komo = ry.KOMO(self.C, 2.0, 1, 1, accumulated_collisions)
         self.komo.addControlObjective([], order=0, scale=homing_scale)
         self.komo.addControlObjective([], order=1, scale=velocity_scale)
+        
         if accumulated_collisions:
             self.komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, scale=[1e0])
 
@@ -72,11 +109,27 @@ class ManipulationModelling():
         if quaternion_norms:
             self.komo.addQuaternionNorms()
 
-        self.komo.addModeSwitch([1.,-1.], ry.SY.stable, [gripper, obj], True)
+        self.komo.addModeSwitch([1.0, -1.0], ry.SY.stable, [gripper, obj], True)
 
     def setup_pick_and_place_sequence(self, gripper: str, table: str, objs: list[str], homing_scale: float=1e-2, velocity_scale: float=1e-1, accumulated_collisions: bool=True, joint_limits: bool=True, quaternion_norms: bool=False):
         """
-        setup an n*2 phase pick-and-place problem
+        Set up a sequence for pick-and-place actions involving multiple objects.
+
+        Args:
+            gripper (str): The name of the gripper being used for the pick-and-place operations.
+            table (str): The name of the table where objects are placed and picked from.
+            objs (list[str]): A list of object names that will be picked and placed.
+            homing_scale (float, optional): The scaling factor for the homing objective, which encourages the system to 
+                                            move towards a home position. Default is 0.01.
+            velocity_scale (float, optional): The scaling factor for the velocity control objective, influencing the 
+                                            rate of movement. Default is 0.1.
+            accumulated_collisions (bool, optional): If True, adds a constraint on accumulated collisions to minimize
+                                                     collisions between objects. Default is True.
+            joint_limits (bool, optional): If True, imposes constraints on joint limits to ensure the robot's joints 
+                                            stay within their allowable range. Default is True.
+            quaternion_norms (bool, optional): If True, adds a constraint to normalize quaternions to ensure valid 
+                                            orientation representations. Default is False.
+
         """
         phases = len(objs) * 2
         self.komo = ry.KOMO(self.C, phases, 1, 1, accumulated_collisions)
@@ -96,9 +149,22 @@ class ManipulationModelling():
             self.komo.addModeSwitch(times, ry.SY.stable, [gripper, obj])
             self.komo.addModeSwitch([times[1], -1.], ry.SY.stable, [table, obj])
 
-    def setup_point_to_point_motion(self, q0: list[float], q1: list[float], homing_scale: float=1e-2, acceleration_scale: float=1e-1, accumulated_collisions: bool=True, quaternion_norms: bool=False):
+    def setup_point_to_point_motion(self, q0: list[float], q1: list[float], homing_scale: float = 1e-2, acceleration_scale: float = 1e-1, accumulatsed_collisions: bool = True, quaternion_norms: bool = False):
         """
-        setup a 1 phase fine-grained motion problem with 2nd order (acceleration) control costs
+        Set up a one-phase fine-grained motion problem with second-order (acceleration) control costs.
+
+        Args:
+            q0 (list[float]): The initial configuration of the robot, represented as a list of joint values.
+            q1 (list[float]): The target configuration of the robot, represented as a list of joint values.
+            homing_scale (float, optional): The scaling factor for the homing control objective, encouraging the robot 
+                                            to return to a home position. Default is 0.01.
+            acceleration_scale (float, optional): The scaling factor for the acceleration control objective, 
+                                                influencing the robot's movement acceleration. Default is 0.1.
+            accumulated_collisions (bool, optional): If True, adds a constraint on accumulated collisions to minimize 
+                                                    or avoid collisions between objects. Default is True.
+            quaternion_norms (bool, optional): If True, adds constraints to normalize quaternions, ensuring valid 
+                                            orientation representations. Default is False.
+
         """
         self.C.setJointState(q1)
         for frame in self.helpers:
@@ -115,26 +181,38 @@ class ManipulationModelling():
                 f_org = self.C.getFrame(frame)
                 f.setPosition(f_org.getPosition())
                 f.setQuaternion(f_org.getQuaternion())
-            
-        self.komo = ry.KOMO(self.C, 1., 32, 2, accumulated_collisions)
+        
+        self.komo = ry.KOMO(self.C, 1.0, 32, 2, accumulated_collisions)
         self.komo.addControlObjective([], order=0, scale=homing_scale)
         self.komo.addControlObjective([], order=2, scale=acceleration_scale)
-        self.komo.initWithWaypoints([q1], 1, interpolate=True, qHomeInterpolate=.5, verbose=0)
+        self.komo.initWithWaypoints([q1], 1, interpolate=True, qHomeInterpolate=0.5, verbose=0)
+        
         if quaternion_norms:
             self.komo.addQuaternionNorms()
 
         if accumulated_collisions:
             self.komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, scale=[1e0])
 
-        # zero vel at end
-        self.komo.addObjective([1.], ry.FS.qItself, [], ry.OT.eq, scale=[1e0], order=1)
+        # ensure zero velocity at the end of the motion
+        self.komo.addObjective([1.0], ry.FS.qItself, [], ry.OT.eq, scale=[1e0], order=1)
 
-        # end point
-        self.komo.addObjective([1.], ry.FS.qItself, [], ry.OT.eq, scale=[1e0], target=q1)
+        # ensure the end configuration matches the target configuration
+        self.komo.addObjective([1.0], ry.FS.qItself, [], ry.OT.eq, scale=[1e0], target=q1)
 
-    def setup_point_to_point_rrt(self, q0: list[float], q1: list[float], explicitCollisionPairs: list[str]=[]):
+    def setup_point_to_point_rrt(self, q0: list[float], q1: list[float], explicitCollisionPairs: list[str] = []):
+        """
+        Set up a point-to-point Rapidly-exploring Random Tree (RRT) motion planning problem between two configurations (q0 and q1).
+
+        Args:
+            q0 (list[float]): The initial configuration of the robot represented as a list of joint values.
+            q1 (list[float]): The target configuration of the robot represented as a list of joint values.
+            explicitCollisionPairs (list[str], optional): A list of pairs of objects that should be treated as colliding.
+                                                        This can help the planner avoid known collision pairs.
+                                                        Default is an empty list, meaning no explicit collision pairs are set.
+        """
         self.rrt = ry.PathFinder()
         self.rrt.setProblem(self.C, q0, q1)
+        
         if len(explicitCollisionPairs):
             self.rrt.setExplicitCollisionPairs(explicitCollisionPairs)
 
@@ -362,13 +440,27 @@ class ManipulationModelling():
 
     def keep_distance(self, time_interval: list[float], obj1: str, obj2: str, margin: float=.001):
         """
-        inequality on distance between two objects
+        Impose an inequality constraint on the distance between two objects over a given time interval.
+
+        Args:
+            time_interval (list[float]): A list with two elements specifying the start and end times during which
+                                        the distance constraints between objects are enforced.
+            objs (list[str]): A list of object names or identifiers. The method ensures that all pairs of objects
+                            maintain a minimum distance from each other.
+            margin (float, optional): The minimum allowed distance between the objects. Default is 0.001 meters.
         """
         self.komo.addObjective(time_interval, ry.FS.negDistance, [obj1, obj2], ry.OT.ineq, [1e1], [-margin])
 
-    def keep_distances(self, time_interval: list[float], objs: list[str], margin: float=.001):
+    def keep_distances(self, time_interval: list[float], objs: list[str], margin: float = 0.001):
         """
-        inequality on distance between multiple objects
+        Impose an inequality constraint on the distance between multiple objects over a given time interval.
+
+        Args:
+            time_interval (list[float]): A list with two elements specifying the start and end times during which
+                                        the distance constraints between objects are enforced.
+            objs (list[str]): A list of object names or identifiers. The method ensures that all pairs of objects
+                            maintain a minimum distance from each other.
+            margin (float, optional): The minimum allowed distance between the objects. Default is 0.001 meters.
         """
         while len(objs) > 1:
             comp = objs[0]
@@ -420,36 +512,87 @@ class ManipulationModelling():
     
     def target_x_orientation(self, time: float, obj: str, x_vector: list[float]):
         """
+        Align the x-axis orientation of a specified object with a target vector at a given time.
+
+        Args:
+            time (float): The specific time at which the orientation constraint is applied.
+            obj (str): The name or identifier of the object whose z-axis orientation is being constrained.
+            z_vector (list[float]): A 3D vector representing the desired orientation of the object's x-axis.
+                                    This vector defines the target direction for the object's x-axis.
         """
         self.komo.addObjective([time], ry.FS.vectorX, [obj], ry.OT.eq, scale=[1e1], target=x_vector)
 
     def target_y_orientation(self, time: float, obj: str, y_vector: list[float]):
         """
+        Align the y-axis orientation of a specified object with a target vector at a given time.
+
+        Args:
+            time (float): The specific time at which the orientation constraint is applied.
+            obj (str): The name or identifier of the object whose z-axis orientation is being constrained.
+            z_vector (list[float]): A 3D vector representing the desired orientation of the object's y-axis.
+                                    This vector defines the target direction for the object's y-axis.
         """
         self.komo.addObjective([time], ry.FS.vectorY, [obj], ry.OT.eq, scale=[1e1], target=y_vector)
 
     def target_z_orientation(self, time: float, obj: str, z_vector: list[float]):
         """
+        Align the z-axis orientation of a specified object with a target vector at a given time.
+
+        Args:
+            time (float): The specific time at which the orientation constraint is applied.
+            obj (str): The name or identifier of the object whose z-axis orientation is being constrained.
+            z_vector (list[float]): A 3D vector representing the desired orientation of the object's z-axis.
+                                    This vector defines the target direction for the object's z-axis.
         """
         self.komo.addObjective([time], ry.FS.vectorZ, [obj], ry.OT.eq, scale=[1e1], target=z_vector)
 
-    def bias(self, time: float, qBias: list[float], scale: float=1e0):
+    def bias(self, time: float, qBias: list[float], scale: float = 1.0):
         """
-        impose a square potential bias directly in joint space
+        Apply a square potential bias directly in joint space.
+
+        Args:
+            time (float): The time at which to impose the bias.
+            qBias (list[float]): A list of target joint angles or positions. This represents the desired configuration for the robot's joints.
+            scale (float, optional): The scaling factor for the bias. This controls the strength of the imposed bias.
+                                    Default value is 1.0.
+
+        The method adds an objective to the optimization problem to steer the system towards the specified joint configuration `qBias`.
         """
         self.komo.addObjective([time], ry.FS.qItself, [], ry.OT.sos, scale=scale, target=qBias)
 
-    def retract(self, time_interval: list[float], gripper: str, dist: float=.05):
-        helper = f'_{gripper}_start'
-        self.komo.addObjective(time_interval, ry.FS.positionRel, [gripper, helper], ry.OT.eq, 1e2 * np.array([[1, 0, 0]]))
-        self.komo.addObjective(time_interval, ry.FS.quaternionDiff, [gripper, helper], ry.OT.eq, [1e2])
-        self.komo.addObjective([time_interval[1]], ry.FS.positionRel, [gripper, helper], ry.OT.ineq, -1e2 * np.array([[0, 0, 1]]), target = [0., 0., dist])
+    def retract(self, time_interval: list[float], gripper: str, dist: float = 0.05):
+        """
+        Define a retract motion for a specified gripper over a time interval.
 
-    def approach(self, time_interval: list[float], gripper: str, dist=.05):
-        helper = f'_{gripper}_end'
+        Args:
+            time_interval (list[float]): A list with two elements specifying the start and end times of the retract motion.
+            gripper (str): The name of the gripper that will perform the retract motion.
+            dist (float, optional): The distance to retract relative to the grippers z-axis. 
+                                    Default value is 0.05 meters.
+        """
+        helper = f'_{gripper}_start'
+
         self.komo.addObjective(time_interval, ry.FS.positionRel, [gripper, helper], ry.OT.eq, 1e2 * np.array([[1, 0, 0]]))
         self.komo.addObjective(time_interval, ry.FS.quaternionDiff, [gripper, helper], ry.OT.eq, [1e2])
-        self.komo.addObjective([time_interval[0]], ry.FS.positionRel, [gripper, helper], ry.OT.ineq, -1e2 * np.array([[0, 0, 1]]), target = [0., 0., dist])
+        self.komo.addObjective([time_interval[1]], ry.FS.positionRel, [gripper, helper], ry.OT.ineq, 
+                            -1e2 * np.array([[0, 0, 1]]), target=[0., 0., dist])
+
+    def approach(self, time_interval: list[float], gripper: str, dist: float = 0.05):
+        """
+        Define an approach motion for a specified gripper over a time interval.
+
+        Args:
+            time_interval (list[float]): A list with two elements specifying the start and end times of the approach motion.
+            gripper (str): The name of the gripper that will perform the approach motion.
+            dist (float, optional): The distance to approach along the z-axis (relative to the gripper's final position).
+                                    Default value is 0.05 meters.
+        """
+        helper = f'_{gripper}_end'
+
+        self.komo.addObjective(time_interval, ry.FS.positionRel, [gripper, helper], ry.OT.eq, 1e2 * np.array([[1, 0, 0]]))
+        self.komo.addObjective(time_interval, ry.FS.quaternionDiff, [gripper, helper], ry.OT.eq, [1e2])
+        self.komo.addObjective([time_interval[0]], ry.FS.positionRel, [gripper, helper], ry.OT.ineq, 
+                            -1e2 * np.array([[0, 0, 1]]), target=[0., 0., dist])
 
     def retractPush(self, time_interval: list[float], gripper: str, dist: float=.03):
         helper = f'_{gripper}_start'
@@ -507,11 +650,19 @@ class ManipulationModelling():
             
         return self.path
 
-    def play(self, C: ry.Config, duration: float=1.):
+    def play(self, C: ry.Config, duration: float = 1.):
+        """
+        Play back a trajectory by setting joint states at each step.
+
+        Args:
+            C (ry.Config): The configuration object representing the robot's state.
+            duration (float, optional): The total duration for playing back the trajectory.
+                                        The default is 1 second.
+        """
         for t in range(self.path.shape[0]):
             C.setJointState(self.path[t])
             C.view(False, f'step {t}\n{self.info}')
-            time.sleep(duration/self.path.shape[0])
+            time.sleep(duration / self.path.shape[0])
 
     def sub_motion(self, phase: int, homing_scale: float=1e-2, acceleration_scale: float=1e-1, accumulated_collisions: bool=True, quaternion_norms: bool=False) -> 'ManipulationModelling':
         (C, q0, q1) = self.komo.getSubProblem(phase)

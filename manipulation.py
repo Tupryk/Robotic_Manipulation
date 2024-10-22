@@ -5,6 +5,18 @@ import time
 class ManipulationModelling():
 
     def __init__(self, C: ry.Config, info: str="", helpers: list[str]=[]):
+        """
+        Initialize a new instance of the Manipulation class.
+
+        Args:
+            C (ry.Config): The current robotic configuration. This object represents the robot and environment setup,
+                        which is used for planning and control tasks.
+            info (str, optional): An optional string for providing additional information or description related to this
+                                manipulation instance. Default is an empty string.
+            helpers (list[str], optional): A list of helper frame names. These helper frames are used to create additional
+                                        start and end frames (e.g., '_frame_start' and '_frame_end') for each entry in the list.
+                                        Default is an empty list.
+        """
         self.C = C
         self.info = info
         self.helpers = helpers
@@ -83,8 +95,8 @@ class ManipulationModelling():
         Set up a two-phase pick-and-place motion problem with a pick switch at timestep 1, and a place switch at timestep 2.
 
         Args:
-            gripper (str): The name or identifier of the gripper that will pick and place the object.
-            obj (str): The name or identifier of the object to be picked and placed.
+            gripper (str): The name of the gripper that will pick and place the object.
+            obj (str): The name of the object to be picked and placed.
             homing_scale (float, optional): The scaling factor for the homing objective, which encourages the system to 
                                             move towards a home position. Default is 0.01.
             velocity_scale (float, optional): The scaling factor for the velocity control objective, influencing the 
@@ -149,7 +161,7 @@ class ManipulationModelling():
             self.komo.addModeSwitch(times, ry.SY.stable, [gripper, obj])
             self.komo.addModeSwitch([times[1], -1.], ry.SY.stable, [table, obj])
 
-    def setup_point_to_point_motion(self, q0: list[float], q1: list[float], homing_scale: float = 1e-2, acceleration_scale: float = 1e-1, accumulatsed_collisions: bool = True, quaternion_norms: bool = False):
+    def setup_point_to_point_motion(self, q0: list[float], q1: list[float], homing_scale: float = 1e-2, acceleration_scale: float = 1e-1, accumulated_collisions: bool = True, quaternion_norms: bool = False):
         """
         Set up a one-phase fine-grained motion problem with second-order (acceleration) control costs.
 
@@ -217,6 +229,20 @@ class ManipulationModelling():
             self.rrt.setExplicitCollisionPairs(explicitCollisionPairs)
 
     def add_helper_frame(self, type: ry.JT, parent: str, name: str, initFrame: int):
+        """
+        Add a helper frame to the KOMO problem.
+
+        Args:
+            type (ry.JT): The type of joint associated with the frame (e.g., hingeX, transXY).
+            parent (str): The name of the parent frame to which this helper frame will be attached.
+            name (str): The unique name for the helper frame.
+            initFrame (int): The initial time frame at which the helper frame is introduced.
+
+        Details:
+            - Adds a stable frame to the motion problem, which maintains its position relative to the parent frame over time.
+            - Sets a marker shape with a size of 0.2 for visualization purposes.
+            - Colors the frame marker magenta (RGB: [1, 0, 1]) for distinction.
+        """
         f = self.komo.addStableFrame(name, parent, type, True, initFrame)
         f.setShape(ry.ST.marker, [.2])
         f.setColor([1., 0., 1.])
@@ -225,8 +251,26 @@ class ManipulationModelling():
 
     def grasp_top_box(self, time: float, gripper: str, obj: str, grasp_direction: str='xz'):
         """
-        grasp a box with a centered top grasp (axes fully aligned)
+        Grasp a box using a top-centered grasp with the gripper's axes fully aligned with the object's axes.
+
+        Args:
+            time (float): The time at which the grasp action will be executed.
+            gripper (str): The name of the gripper that will perform the grasp.
+            obj (str): The name of the object (box) to be grasped.
+            grasp_direction (str, optional): Specifies the grasp direction by aligning specific axes of the gripper 
+                                            and the object. Default is 'xz'.
+                                            Possible values:
+                                            - 'xz': Aligns XY, XZ, and YZ axes.
+                                            - 'yz': Aligns YY, XZ, and YZ axes.
+                                            - 'xy': Aligns XY, XZ, and ZZ axes.
+                                            - 'zy': Aligns XX, XZ, and ZZ axes.
+                                            - 'yx': Aligns YY, YZ, and ZZ axes.
+                                            - 'zx': Aligns YX, YZ, and ZZ axes.
+
+        Raises:
+            Exception: If an invalid grasp_direction is provided.
         """
+
         if grasp_direction == 'xz':
             align = [ry.FS.scalarProductXY, ry.FS.scalarProductXZ, ry.FS.scalarProductYZ]
         elif grasp_direction == 'yz':
@@ -252,9 +296,28 @@ class ManipulationModelling():
 
     def grasp_box(self, time: float, gripper: str, obj: str, palm: str, grasp_direction: str='x', margin: float=.02):
         """
-        general grasp of a box, squeezing along provided grasp_axis (-> 3
-        possible grasps of a box), where and angle of grasp is decided by
-        inequalities on grasp plan and no-collision of box and palm
+        Perform a general grasp of a box by squeezing along the specified grasp axis (resulting in three possible grasps of a box),
+        ensuring no collision with the palm. 
+        Args:
+            time (float): The time at which the grasp action will be executed.
+            gripper (str): The name of the gripper that will perform the grasp.
+            obj (str): The name of the object (box) to be grasped.
+            palm (str): The name of the palm or part of the robot that should avoid collisions with the object.
+            grasp_direction (str, optional): The axis along which the gripper should grasp the box. Default is 'x'.
+                                            Possible values:
+                                            - 'x': Grasp along the X-axis.
+                                            - 'y': Grasp along the Y-axis.
+                                            - 'z': Grasp along the Z-axis.
+            margin (float, optional): The margin for no-collision constraints between the box and the palm. Default is 0.02.
+
+        Raises:
+            Exception: If an invalid grasp_direction is provided.
+
+        Details:
+            - The Angle of the grasp is decided by inequalities on the grasp plan.
+            - The position and orientation objectives ensure that the gripper is centered on the box, and the grasp axis is orthogonal to the target plane.
+            - The margin parameter is used to add tolerance to the no-collision constraints between the box and palm.
+
         """
         if grasp_direction == 'x':
             xLine = np.array([[1, 0, 0]])
@@ -273,23 +336,31 @@ class ManipulationModelling():
 
         boxSize = self.C.frame(obj).getSize()[:3]
 
-        # position: center in inner target plane X-specific
         self.komo.addObjective([time], ry.FS.positionRel, [gripper, obj], ry.OT.eq, xLine*1e1)
         self.komo.addObjective([time], ry.FS.positionRel, [gripper, obj], ry.OT.ineq, yzPlane*1e1, .5*boxSize-margin)
         self.komo.addObjective([time], ry.FS.positionRel, [gripper, obj], ry.OT.ineq, yzPlane*(-1e1), -.5*boxSize+margin)
 
-        # orientation: grasp axis orthoginal to target plane X-specific
         self.komo.addObjective([time-.2,time], align[0], [gripper, obj], ry.OT.eq, [1e0])
         self.komo.addObjective([time-.2,time], align[1], [gripper, obj], ry.OT.eq, [1e0])
 
-        # no collision with palm
         self.komo.addObjective([time-.3,time], ry.FS.distance, [palm, obj], ry.OT.ineq, [1e1], [-.001])
 
     def grasp_cylinder(self, time: float, gripper: str, obj: str, palm: str, margin: float=.02):
         """
-        general grasp of a cylinder, with squeezing the axis normally,
-        inequality along z-axis for positioning, and no-collision with palm
+        Perform a grasp of a cylinder by squeezing normally to the cylinder's axis, ensuring no collision with the palm.
+        
+        Args:
+            time (float): The time at which the grasp action will be executed.
+            gripper (str): The name of the gripper that will perform the grasp.
+            obj (str): The name of the cylindrical object to be grasped.
+            palm (str): The name of the palm or part of the robot that should avoid collisions with the object.
+            margin (float, optional): The margin for no-collision constraints between the cylinder and the palm. Default is 0.02.
+
+        Details:
+            - Inequality constraint along the z-axis for positioning.
+
         """
+
         size = self.C.frame(obj).getSize()[:2]
 
         # position: center along axis, stay within z-range
@@ -305,8 +376,24 @@ class ManipulationModelling():
 
     def place_box(self, time: float, obj: str, table: str, palm: str, place_direction: str='z', margin: float=.02):
         """
-        placement of one box on another
+        Placement of one box onto another (named table) in a specific direction
+
+        Args:
+            time (float): The time at which the placement is executed.
+            obj (str): The name of the object (box) to be placed.
+            table (str): The name of the surface (table or another box) where the box will be placed.
+            palm (str): The name of the palm or part of the robot that should avoid collisions during placement.
+            place_direction (str, optional): The axis along which the box is placed on the surface. Default is 'z'.
+                                            Possible values:
+                                            - 'x': Place along the X-axis.
+                                            - 'y': Place along the Y-axis.
+                                            - 'z': Place along the Z-axis (default).
+                                            - 'xNeg': Place along the negative X-axis.
+                                            - 'yNeg': Place along the negative Y-axis.
+                                            - 'zNeg': Place along the negative Z-axis.
+            margin (float, optional): The margin to avoid collisions between the box and the table or other objects. Default is 0.02.
         """
+
         zVectorTarget = np.array([0.,0.,1.])
         boxSize = self.C.getFrame(obj).getSize()[:3]
         tableSize = self.C.getFrame(table).getSize()[:3]
@@ -338,20 +425,36 @@ class ManipulationModelling():
             zVectorTarget *= -1.
             align = [ry.FS.scalarProductXZ, ry.FS.scalarProductYZ]
 
-        # position: above table, inside table
         self.komo.addObjective([time], ry.FS.positionDiff, [obj, table], ry.OT.eq, 1e1*np.array([[0, 0, 1]]), np.array([.0, .0, relPos]))
         self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, 1e1*np.array([[1, 0, 0],[0, 1, 0]]), .5*tableSize-margin)
         self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, -1e1*np.array([[1, 0, 0],[0, 1, 0]]), -.5*tableSize+margin)
 
-        # orientation: Z-up
         self.komo.addObjective([time-.2, time], zVector, [obj], ry.OT.eq, [0.5], zVectorTarget)
         self.komo.addObjective([time-.2,time], align[0], [table, obj], ry.OT.eq, [1e0])
         self.komo.addObjective([time-.2,time], align[1], [table, obj], ry.OT.eq, [1e0])
 
-        # no collision with palm
         self.komo.addObjective([time-.3,time], ry.FS.distance, [palm, table], ry.OT.ineq, [1e1], [-.001])
 
     def straight_push(self, times: list[float], obj: str, gripper: str, table: str):
+        """
+        Define a straight push motion for the gripper to push an object across a table.
+
+        Args:
+            times (list[float]): A list of two time points specifying the start and end times for the pushing motion.
+            obj (str): The name of the object being pushed.
+            gripper (str): The name of the gripper that will perform the push.
+            table (str): The name of the table where the push occurs.
+
+        Behavior:
+            - Adds two helper frames ('_push_start' and '_push_end') attached to the table and object to define the
+            start and end points of the pushing motion.
+            - Ensures the start and end frames are aligned in both orientation and position, imposing constraints on
+            their alignment and ensuring a minimum distance between them.
+            - Ensures the gripper is in contact with the object and aligns it with the start position at the beginning
+            of the motion.
+            - The object is constrained to follow a straight path and maintain its orientation at the end of the push.
+        """ 
+        
         #start & end helper frames
         self.add_helper_frame(ry.JT.hingeZ, table, '_push_start', obj)
         self.add_helper_frame(ry.JT.transXYPhi, table, '_push_end', obj)
@@ -382,6 +485,22 @@ class ManipulationModelling():
         self.komo.addObjective([times[1]], ry.FS.quaternion, [obj], ry.OT.eq, [1e1], [], 1); #qobjPose.rot.getArr4d())
 
     def pull(self, times: list[float], obj: str, gripper: str, table: str):
+        """
+        Define a pulling motion where the gripper pulls an object along the table surface while maintaining a fixed downward orientation.
+
+        Args:
+            times (list[float]): A list of two time points specifying the start and end times for the pulling motion.
+            obj (str): The name of the object being pulled.
+            gripper (str): The name of the gripper performing the pull.
+            table (str): The name of the table or surface on which the object is being pulled.
+
+        Behavior:
+            - Adds a helper frame (`_pull_end`) attached to the table and object to define the endpoint of the pulling motion.
+            - Ensures both the gripper and object maintain a fixed downward orientation (along the Z-axis) throughout the motion.
+            - Ensures the gripper is in contact with the object at the start of the pulling motion.
+            - Constrains the object to follow the gripper and reach the target position (`_pull_end`) at the end of the motion.
+        """
+
         self.add_helper_frame(ry.JT.transXYPhi, table, '_pull_end', obj)
         
         self.komo.addObjective([times[0]], ry.FS.vectorZ, [gripper], ry.OT.eq, [1e1], np.array([0,0,1]))
@@ -419,8 +538,16 @@ class ManipulationModelling():
 
     def path_must_be_straight(self, times: list[float], start_frame: str, end_frame: str, moving_frame: str, gotoPoints: bool=False):
         """
-        The motions between the start and end frames must follow a
-        straight path when looking at the motion frame given as input
+        Constrain the motion of a moving frame to follow a straight path between start and end during the.
+
+        Args:
+            times (list[float]): A list of times that define the duration of the motion constraint.
+            start_frame (str): The name of the starting frame for the motion.
+            end_frame (str): The name of the target frame for the motion.
+            moving_frame (str): The name of the frame that is moving and must follow the straight path.
+            gotoPoints (bool, optional): If True, additional constraints are added to ensure that the moving frame is exactly
+                                        at the start and end points at the beginning and end of the time period.
+                                        Default is False.
         """
 
         delta = self.C.getFrame(end_frame).getPosition() - \
@@ -470,13 +597,25 @@ class ManipulationModelling():
 
     def set_relative_distance(self, time: float, obj1: str, obj2: str, distance: float):
         """
-        inequality on distance between two objects
+        Impose an inequality constraint on the relative distance between two objects at a specific time.
+
+        Args:
+            time (float): The time at which the distance constraint between the two objects is enforced.
+            obj1 (str): The name of the first object.
+            obj2 (str): The name of the second object.
+            distance (float): The desired distance between the two objects, where the actual distance must not exceed this value.
         """
         self.komo.addObjective([time], ry.FS.negDistance, [obj1, obj2], ry.OT.eq, [1e1], [-distance])
 
     def switch_pick(self, time_interval: list[float], gripper: str, obj: str):
         """
-        a kinematic mode switch, where obj becomes attached to gripper, with freely parameterized but stable (=constant) relative pose
+        Perform a kinematic mode switch, attaching the object to the gripper with a freely parameterized but stable (i.e. constant)
+        relative pose during a specified time interval.
+
+        Args:
+            time_interval (list[float]): A list with two elements specifying the start and end times during which the mode switch occurs.
+            gripper (str): The name of the gripper that will pick up the object.
+            obj (str): The name of the object to be picked up and attached to the gripper.
         """
         self.komo.addModeSwitch(time_interval, ry.SY.stable, [gripper, obj])
 
@@ -490,13 +629,25 @@ class ManipulationModelling():
 
     def target_position(self, time: float, obj: str, pos: list[float]):
         """
-        impose a specific 3D target position on some object
+        Impose a specific 3D target position on the specified object at a given time.
+
+        Args:
+            time (float): The time at which the position constraint is applied.
+            obj (str): The name of the object whose position is being constrained.
+            pos (list[float]): A list of three floats representing the target 3D position (x, y, z) of the object.
         """
         self.komo.addObjective([time], ry.FS.position, [obj], ry.OT.eq, [1e1], pos)
 
     def target_xy_position(self, time: float, obj: str, pos: list[float]):
         """
-        impose a specific 2D target position on some object
+        Impose a specific 2D target position (x, y) on the specified object at a given time.
+
+        Args:
+            time (float): The time at which the position constraint is applied.
+            obj (str): The name of the object whose position is being constrained.
+            pos (list[float]): A list of two or three floats representing the target 2D position (x, y).
+                            If only two values are provided, the z-component is set to 0.
+                            
         """
         if len(pos)==2:
             pos.append(0.)
@@ -504,7 +655,14 @@ class ManipulationModelling():
     
     def target_relative_xy_position(self, time: float, obj: str, relativeTo: str, pos: list[float]):
         """
-        impose a specific 3D target position on some object
+        Impose a specific 3D target position on an object relative to another frame at a given time.
+
+        Args:
+            time (float): The time at which the position constraint is applied.
+            obj (str): The name of the object whose position is being constrained.
+            relativeTo (str): The name of the reference frame relative to which the object's position is defined.
+            pos (list[float]): A list of two or three floats representing the target position relative to `relativeTo`.
+                            If only two values are provided, the z-component is set to 0.
         """
         if len(pos)==2:
             pos.append(0.)
@@ -516,7 +674,7 @@ class ManipulationModelling():
 
         Args:
             time (float): The specific time at which the orientation constraint is applied.
-            obj (str): The name or identifier of the object whose z-axis orientation is being constrained.
+            obj (str): The name of the object whose z-axis orientation is being constrained.
             z_vector (list[float]): A 3D vector representing the desired orientation of the object's x-axis.
                                     This vector defines the target direction for the object's x-axis.
         """
@@ -528,7 +686,7 @@ class ManipulationModelling():
 
         Args:
             time (float): The specific time at which the orientation constraint is applied.
-            obj (str): The name or identifier of the object whose z-axis orientation is being constrained.
+            obj (str): The name of the object whose z-axis orientation is being constrained.
             z_vector (list[float]): A 3D vector representing the desired orientation of the object's y-axis.
                                     This vector defines the target direction for the object's y-axis.
         """
@@ -540,7 +698,7 @@ class ManipulationModelling():
 
         Args:
             time (float): The specific time at which the orientation constraint is applied.
-            obj (str): The name or identifier of the object whose z-axis orientation is being constrained.
+            obj (str): The name of the object whose z-axis orientation is being constrained.
             z_vector (list[float]): A 3D vector representing the desired orientation of the object's z-axis.
                                     This vector defines the target direction for the object's z-axis.
         """
@@ -556,7 +714,8 @@ class ManipulationModelling():
             scale (float, optional): The scaling factor for the bias. This controls the strength of the imposed bias.
                                     Default value is 1.0.
 
-        The method adds an objective to the optimization problem to steer the system towards the specified joint configuration `qBias`.
+        Details:
+            - This method adds an objective to the optimization problem to steer the system towards the specified joint configuration `qBias`.
         """
         self.komo.addObjective([time], ry.FS.qItself, [], ry.OT.sos, scale=scale, target=qBias)
 
@@ -612,6 +771,20 @@ class ManipulationModelling():
         self.komo.addObjective([time_interval[0]], ry.FS.positionRel, [gripper, helper], ry.OT.ineq, -1e2 * np.array([[0, 0, 1]]), [0., 0., dist])
         
     def solve(self, verbose: int=1) -> list[list[float]]:
+        """   
+        Finding a feasible path or trajectory by solving a nonlinear optimization problem formulated in KOMO, or using RRT, respectively.
+        
+        Args:
+            verbose (int, optional): The verbosity level for logging the process.
+                                    - 0: No output.
+                                    - 1: Basic output about feasibility.
+                                    - 2: Detailed output, including solver reports and failure visualization.
+                                    - 3: Full output, including real-time path playback. Default is 1.
+        
+        Returns:
+            list[list[float]]: The computed path or trajectory as a list of 3D points, if a solution is found. 
+                            Returns `None` if the optimization fails or no problem is defined.
+        """
         if self.komo:
             sol = ry.NLP_Solver()
             sol.setProblem(self.komo.nlp())
@@ -665,12 +838,35 @@ class ManipulationModelling():
             time.sleep(duration / self.path.shape[0])
 
     def sub_motion(self, phase: int, homing_scale: float=1e-2, acceleration_scale: float=1e-1, accumulated_collisions: bool=True, quaternion_norms: bool=False) -> 'ManipulationModelling':
+        """
+        Create a sub-motion plan for a specific phase using KOMO and return a ManipulationModelling instance.
+
+        Args:
+            phase (int): The phase number for which the sub-motion is to be planned. .
+            homing_scale (float, optional): The scaling factor for the homing (returning to a predefined posture) objective. Default is 1e-2.
+            acceleration_scale (float, optional): The scaling factor for the acceleration minimization objective. Default is 1e-1.
+            accumulated_collisions (bool, optional): If True, enables accumulated collision constraints during the sub-motion planning. Default is True.
+            quaternion_norms (bool, optional): If True, enforces quaternion normalization during the motion (useful for rotational consistency). Default is False.
+
+        Returns:
+            ManipulationModelling: A new instance of the ManipulationModelling class, configured for the sub-motion plan of the given phase.
+        """
         (C, q0, q1) = self.komo.getSubProblem(phase)
         manip = ManipulationModelling(C, f'sub_motion_{phase}--{self.info}', self.helpers)
         manip.setup_point_to_point_motion(q0, q1, homing_scale, acceleration_scale, accumulated_collisions, quaternion_norms)
         return manip
 
     def sub_rrt(self, phase: int, explicitCollisionPairs: list[str]=[]) -> 'ManipulationModelling':
+        """
+        Create a sub-motion plan for a specific phase using RRT (Rapidly-exploring Random Trees) and return a ManipulationModelling instance.
+
+        Args:
+            phase (int): The phase number for which the sub-motion is to be planned.
+            explicitCollisionPairs (list[str], optional): A list of object pairs for which explicit collision avoidance should be enforced. Default is an empty list.
+
+        Returns:
+            ManipulationModelling: A new instance of the ManipulationModelling class, configured for the sub-motion plan of the given phase.
+        """
         (C, q0, q1) = self.komo.getSubProblem(phase)
         manip = ManipulationModelling(C, f'sub_rrt_{phase}--{self.info}', self.helpers)
         manip.setup_point_to_point_rrt(q0, q1, explicitCollisionPairs)

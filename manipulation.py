@@ -595,10 +595,11 @@ class ManipulationModelling():
         more general placements have to be modelled with switch_pick (table picking the object) and additinal user-defined geometric constraints
         '''
 
-    def target_position():
+    def target_position(self, time: float, obj: str, pos: List[float]):
         '''
         impose a specific 3D target position on some object
         '''
+        self.komo.addObjective([time], ry.FS.position, [obj], ry.OT.eq, scale=[1e1], target=pos)
 
     def target_relative_xy_position(self, time: float, obj: str, relativeTo: str, pos: List[float]):
         """

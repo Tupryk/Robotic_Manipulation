@@ -344,7 +344,7 @@ class ManipulationModelling():
         # no collision with palm
         self.komo.addObjective([time-.3,time], ry.FS.distance, [palm, obj], ry.OT.ineq, [1e1], [-.001])
 
-    def place_box(self, time: float, obj: str, table: str, palm: str, place_direction: str='z', margin: float=.02):
+    def place_box(self, time: float, obj: str, table: str, palm: str, place_direction: str='z', margin: float=.02, on_table: bool=True):
         """
         Placement of one box or cylinder onto another box (named table) in a specific direction
 
@@ -408,9 +408,10 @@ class ManipulationModelling():
             raise Exception('place_direction not defined:', place_direction)
 
         # position: above table, inside table
-        self.komo.addObjective([time], ry.FS.positionDiff, [obj, table], ry.OT.eq, 1e1*np.array([[0, 0, 1]]), np.array([.0, .0, relPos]))
-        self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, 1e1*np.array([[1, 0, 0],[0, 1, 0]]), .5*tableSize-margin)
-        self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, -1e1*np.array([[1, 0, 0],[0, 1, 0]]), -.5*tableSize+margin)
+        if on_table:
+            self.komo.addObjective([time], ry.FS.positionDiff, [obj, table], ry.OT.eq, 1e1*np.array([[0, 0, 1]]), np.array([.0, .0, relPos]))
+            self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, 1e1*np.array([[1, 0, 0],[0, 1, 0]]), .5*tableSize-margin)
+            self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, -1e1*np.array([[1, 0, 0],[0, 1, 0]]), -.5*tableSize+margin)
 
         # orientation: Z-up
         self.komo.addObjective([time-.2, time], zVector, [obj], ry.OT.eq, [0.5], zVectorTarget)

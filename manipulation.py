@@ -377,35 +377,36 @@ class ManipulationModelling():
             raise Exception('NIY')
 
         tableSize = self.komo.getConfig().getFrame(table).getSize()[:3]
-        if place_direction == 'x':
-            relPos = .5*(boxSize[0]+tableSize[2])
-            zVector = ry.FS.vectorX
-            align = [ry.FS.scalarProductXX, ry.FS.scalarProductYX]
-        elif place_direction == 'y':
-            relPos = .5*(boxSize[1]+tableSize[2])
-            zVector = ry.FS.vectorY
-            align = [ry.FS.scalarProductXY, ry.FS.scalarProductYY]
-        elif place_direction == 'z':
-            relPos = .5*(boxSize[2]+tableSize[2])
-            zVector = ry.FS.vectorZ
-            align = [ry.FS.scalarProductXZ, ry.FS.scalarProductYZ]
-        elif place_direction == 'xNeg':
-            relPos = .5*(boxSize[0]+tableSize[2])
-            zVector = ry.FS.vectorX
-            zVectorTarget *= -1.
-            align = [ry.FS.scalarProductXX, ry.FS.scalarProductYX]
-        elif place_direction == 'yNeg':
-            relPos = .5*(boxSize[1]+tableSize[2])
-            zVector = ry.FS.vectorY
-            zVectorTarget *= -1.
-            align = [ry.FS.scalarProductXY, ry.FS.scalarProductYY]
-        elif place_direction == 'zNeg':
-            relPos = .5*(boxSize[2]+tableSize[2])
-            zVector = ry.FS.vectorZ
-            zVectorTarget *= -1.
-            align = [ry.FS.scalarProductXZ, ry.FS.scalarProductYZ]
-        else:
-            raise Exception('place_direction not defined:', place_direction)
+        if place_direction != None:
+            if place_direction == 'x':
+                relPos = .5*(boxSize[0]+tableSize[2])
+                zVector = ry.FS.vectorX
+                align = [ry.FS.scalarProductXX, ry.FS.scalarProductYX]
+            elif place_direction == 'y':
+                relPos = .5*(boxSize[1]+tableSize[2])
+                zVector = ry.FS.vectorY
+                align = [ry.FS.scalarProductXY, ry.FS.scalarProductYY]
+            elif place_direction == 'z':
+                relPos = .5*(boxSize[2]+tableSize[2])
+                zVector = ry.FS.vectorZ
+                align = [ry.FS.scalarProductXZ, ry.FS.scalarProductYZ]
+            elif place_direction == 'xNeg':
+                relPos = .5*(boxSize[0]+tableSize[2])
+                zVector = ry.FS.vectorX
+                zVectorTarget *= -1.
+                align = [ry.FS.scalarProductXX, ry.FS.scalarProductYX]
+            elif place_direction == 'yNeg':
+                relPos = .5*(boxSize[1]+tableSize[2])
+                zVector = ry.FS.vectorY
+                zVectorTarget *= -1.
+                align = [ry.FS.scalarProductXY, ry.FS.scalarProductYY]
+            elif place_direction == 'zNeg':
+                relPos = .5*(boxSize[2]+tableSize[2])
+                zVector = ry.FS.vectorZ
+                zVectorTarget *= -1.
+                align = [ry.FS.scalarProductXZ, ry.FS.scalarProductYZ]
+            else:
+                raise Exception('place_direction not defined:', place_direction)
 
         # position: above table, inside table
         if on_table:
@@ -414,9 +415,10 @@ class ManipulationModelling():
             self.komo.addObjective([time], ry.FS.positionRel, [obj, table], ry.OT.ineq, -1e1*np.array([[1, 0, 0],[0, 1, 0]]), -.5*tableSize+margin)
 
         # orientation: Z-up
-        self.komo.addObjective([time-.2, time], zVector, [obj], ry.OT.eq, [0.5], zVectorTarget)
-        self.komo.addObjective([time-.2,time], align[0], [table, obj], ry.OT.eq, [1e0])
-        self.komo.addObjective([time-.2,time], align[1], [table, obj], ry.OT.eq, [1e0])
+        if place_direction != None:
+            self.komo.addObjective([time-.2, time], zVector, [obj], ry.OT.eq, [0.5], zVectorTarget)
+            self.komo.addObjective([time-.2,time], align[0], [table, obj], ry.OT.eq, [1e0])
+            self.komo.addObjective([time-.2,time], align[1], [table, obj], ry.OT.eq, [1e0])
 
         # no collision with palm
         if palm != None:
